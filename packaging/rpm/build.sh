@@ -12,6 +12,11 @@
 # Usage:
 #   packaging/rpm/build.sh              # build the RPM
 #   OUTPUT_DIR=/tmp/rpms  ...           # where to write it (default: dist/rpm)
+#   RPM_RELEASE=0.2.rc1  ...            # override the release number
+#
+# Bump RPM_RELEASE when rebuilding the same upstream version with different
+# contents: dnf compares name-epoch-version-release, so a rebuild that reuses the
+# release is not seen as an upgrade and will not replace an installed package.
 #
 # The result is a noarch RPM: the payload is pure JavaScript, so it installs on
 # x86_64 and aarch64 alike. It requires nodejs >= 20, which on Rocky 9 means
@@ -30,7 +35,9 @@ ROCKY_IMAGE="${ROCKY_IMAGE:-rockylinux:9}"
 # final release, which is what the 0.N. prefix achieves.
 NPM_VERSION="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$REPO_ROOT/packages/cli/package.json" | head -1)"
 RPM_VERSION="${NPM_VERSION%%-*}"
-if [ "$NPM_VERSION" = "$RPM_VERSION" ]; then
+if [ -n "${RPM_RELEASE:-}" ]; then
+  : # caller supplied one
+elif [ "$NPM_VERSION" = "$RPM_VERSION" ]; then
   RPM_RELEASE="1"
 else
   # 3.0.0-rc.1 -> 0.1.rc1
