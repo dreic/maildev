@@ -1,0 +1,52 @@
+[Unit]
+Description=MailDev - SMTP server and web interface for testing email
+Documentation=https://github.com/maildev/maildev
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=maildev
+Group=maildev
+EnvironmentFile=-/etc/maildev/maildev.conf
+ExecStart=/usr/bin/maildev
+WorkingDirectory=/var/lib/maildev
+Restart=on-failure
+RestartSec=5s
+
+# Captured mail. StateDirectory creates and chowns it if it is missing.
+StateDirectory=maildev
+ReadWritePaths=/var/lib/maildev
+
+# The default ports (1025/1080) are unprivileged, so the service needs no
+# capabilities at all. Lower the ports below 1024 only if you also add
+# AmbientCapabilities=CAP_NET_BIND_SERVICE.
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+# AF_NETLINK is required: Node's os.networkInterfaces() goes through
+# getifaddrs(), which opens a netlink socket. Without it the process dies at
+# startup with "uv_interface_addresses returned Unknown system error 97".
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=no
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
