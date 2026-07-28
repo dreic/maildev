@@ -115,6 +115,50 @@ default to ports 1025/1080, so don't enable `maildev.service` alongside an
 instance using those. For a purely multi-instance host, leave `maildev.service`
 disabled and use only the template.
 
+### Behind one reverse proxy
+
+To reach several instances through a single hostname, give each one a path and
+tell it what that path is. Two rules, and they must agree:
+
+1. `proxy_pass` takes **no trailing slash**, so the prefix is forwarded to
+   MailDev rather than stripped.
+2. Each instance sets `MAILDEV_BASE_PATHNAME` to the same prefix, without a
+   trailing slash.
+
+```nginx
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 443 ssl;
+    server_name mailcatcher.example.com;
+
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+
+    location /dev/corehr/     { proxy_pass http://localhost:2080; }
+    location /qa/corehr/      { proxy_pass http://localhost:3080; }
+    location /staging/corehr/ { proxy_pass http://localhost:4080; }
+}
+```
+
+```ini
+# /etc/maildev/instances/dev.conf
+MAILDEV_SMTP_PORT=2025
+MAILDEV_WEB_PORT=2080
+MAILDEV_BASE_PATHNAME=/dev/corehr
+```
+
+If the two disagree the page still loads while everything it then requests —
+assets, REST calls, the websocket — resolves to the wrong path and 404s. A
+trailing slash on `proxy_pass` is the usual cause.
+
 Equivalent command-line form, if you would rather not use systemd at all — the
 v2 flags all still work:
 

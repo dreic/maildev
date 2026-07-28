@@ -38,9 +38,20 @@ MAILDEV_MAX_EMAILS=1000
 #MAILDEV_INCOMING_USER=
 #MAILDEV_INCOMING_PASS=
 
-# Serve the web interface under a sub-path, useful when several instances sit
-# behind one reverse proxy.
-#MAILDEV_BASE_PATHNAME=/
+# Serve the web interface under a sub-path. Set this when several instances sit
+# behind one reverse proxy on different paths, and make it match the proxy's
+# location exactly, without a trailing slash:
+#
+#     # nginx — note there is NO trailing slash on proxy_pass, so the
+#     # /dev/corehr prefix is forwarded to MailDev rather than stripped
+#     location /dev/corehr/ { proxy_pass http://localhost:2080; }
+#
+#     MAILDEV_BASE_PATHNAME=/dev/corehr
+#
+# The two have to agree. A trailing slash on proxy_pass strips the prefix, and
+# MailDev then answers on /dev/corehr/... while the proxy asks for /... —  the
+# page loads but its assets and API calls all 404.
+#MAILDEV_BASE_PATHNAME=/dev/corehr
 
 # Relay captured mail on to a real SMTP server.
 #MAILDEV_OUTGOING_HOST=
