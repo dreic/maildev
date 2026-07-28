@@ -1,0 +1,63 @@
+# MailDev instance configuration
+#
+# Copy this to /etc/maildev/instances/<name>.conf, one file per instance, then:
+#
+#     systemctl enable --now maildev@<name>
+#
+# Every instance needs its own SMTP and web port; nothing else is required. Mail
+# is kept in /var/lib/maildev/<name> by default, so instances stay isolated from
+# each other without any extra configuration.
+#
+# Run `maildev --help` for the full list of settings.
+
+# Required: ports for this instance. Pick values no other instance or service
+# is using — the unit will fail to start with EADDRINUSE otherwise.
+MAILDEV_SMTP_PORT=2025
+MAILDEV_WEB_PORT=2080
+
+# Bind addresses. Defaults accept connections from anywhere; use 127.0.0.1 to
+# restrict an instance to this host.
+MAILDEV_IP=::
+MAILDEV_WEB_IP=0.0.0.0
+
+# Override only if this instance should not use /var/lib/maildev/<name>.
+# The directory must be writable by the maildev user, and if you move it outside
+# /var/lib/maildev you must also add it to ReadWritePaths= in a unit override.
+#MAILDEV_MAIL_DIRECTORY=/var/lib/maildev/example
+
+# Maximum emails this instance keeps. Older mail is discarded with its files once
+# the limit is reached. 0 removes the limit, and lets memory and disk grow
+# without bound.
+MAILDEV_MAX_EMAILS=1000
+
+# HTTP basic auth for this instance's web interface. Both must be set.
+#MAILDEV_WEB_USER=admin
+#MAILDEV_WEB_PASS=
+
+# Require SMTP authentication for incoming mail. Both must be set.
+#MAILDEV_INCOMING_USER=
+#MAILDEV_INCOMING_PASS=
+
+# Serve the web interface under a sub-path. Set this when several instances sit
+# behind one reverse proxy on different paths, and make it match the proxy's
+# location exactly, without a trailing slash:
+#
+#     # nginx — note there is NO trailing slash on proxy_pass, so the
+#     # /dev/corehr prefix is forwarded to MailDev rather than stripped
+#     location /dev/corehr/ { proxy_pass http://localhost:2080; }
+#
+#     MAILDEV_BASE_PATHNAME=/dev/corehr
+#
+# The two have to agree. A trailing slash on proxy_pass strips the prefix, and
+# MailDev then answers on /dev/corehr/... while the proxy asks for /... —  the
+# page loads but its assets and API calls all 404.
+#MAILDEV_BASE_PATHNAME=/dev/corehr
+
+# Relay captured mail on to a real SMTP server.
+#MAILDEV_OUTGOING_HOST=
+#MAILDEV_OUTGOING_PORT=25
+
+# Enable the MCP endpoint at /mcp for AI agent integration.
+#MAILDEV_MCP=true
+
+#MAILDEV_VERBOSE=true

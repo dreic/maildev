@@ -9,6 +9,13 @@ dist-server
 maildev-*
 .nodemonignore
 
+# Distribution packages built by packaging/rpm/build.sh. These land in dist/
+# (already ignored above), but they are large binaries and must never be
+# committed even if a build is pointed somewhere else via OUTPUT_DIR.
+*.rpm
+*.deb
+*.pkg.tar.zst
+
 # Ignore npm debug log
 npm-debug.log
 

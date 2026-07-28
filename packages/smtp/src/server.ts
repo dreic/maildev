@@ -7,7 +7,16 @@
 import { SMTPServer as SMTPServerLib } from 'smtp-server'
 import type { SMTPServerSession, SMTPServerDataStream } from 'smtp-server'
 import { EventEmitter } from 'node:events'
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import {
+  accessSync,
+  constants as fsConstants,
+  createReadStream,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+} from 'node:fs'
 import { rm, readdir, readFile, writeFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
@@ -769,9 +778,30 @@ export class SMTPServer extends EventEmitter {
    * Ensure the mail directory exists
    */
   private ensureMailDir(): void {
-    if (!existsSync(this.mailDir)) {
+    if (existsSync(this.mailDir)) {
+      if (!statSync(this.mailDir).isDirectory()) {
+        throw new Error(`Mail directory is not a directory: ${this.mailDir}`)
+      }
+    } else {
       mkdirSync(this.mailDir, { recursive: true })
     }
+
+    // Checked up front so an unwritable directory fails at startup with
+    // something actionable. Otherwise the first message to arrive fails inside
+    // the SMTP transaction, where it surfaces to the sending client as an
+    // opaque "Mailbox unavailable" and is easy to misread as a mail problem.
+    try {
+      accessSync(this.mailDir, fsConstants.W_OK)
+    } catch (err) {
+      const code = err instanceof Error && 'code' in err ? String(err.code) : 'unknown error'
+      throw new Error(
+        `Mail directory is not writable: ${this.mailDir} (${code}). ` +
+          'Check its ownership and permissions. When running under a service ' +
+          'manager, sandboxing may also be blocking writes — a systemd unit with ' +
+          'ProtectSystem=strict needs this path in ReadWritePaths=.'
+      )
+    }
+
     this.logger.info('Using mail directory:', this.mailDir)
   }
 
