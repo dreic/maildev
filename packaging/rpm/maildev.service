@@ -4,6 +4,13 @@ Documentation=https://github.com/maildev/maildev
 After=network-online.target
 Wants=network-online.target
 
+# Give up rather than retry forever. A port already in use is a permanent error,
+# and with RestartSec=5 the default start limit (5 attempts per 10s) is never
+# reached, so the unit would retry indefinitely instead of settling into 'failed'
+# where it is visible.
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
 [Service]
 Type=simple
 User=maildev

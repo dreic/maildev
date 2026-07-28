@@ -19,6 +19,8 @@ URL:            https://github.com/maildev/maildev
 Source0:        %{name}-app.tar.gz
 Source1:        maildev.service
 Source2:        maildev.conf
+Source3:        maildev@.service
+Source4:        instance.conf.example
 
 # All JavaScript — the same payload runs on any architecture Node supports.
 BuildArch:      noarch
@@ -43,6 +45,10 @@ delivered, so nothing reaches real recipients.
 This package installs MailDev as a systemd service listening for SMTP on port
 1025 and serving its web interface and REST API on port 1080. Adjust those and
 other settings in %{_sysconfdir}/%{name}/%{name}.conf.
+
+To run several independent instances on one host — each with its own ports and
+mail directory — drop a config file per instance into
+%{_sysconfdir}/%{name}/instances/ and use the maildev@.service template.
 
 
 %prep
@@ -69,9 +75,17 @@ EOF
 chmod 0755 %{buildroot}%{_bindir}/%{name}
 
 install -D -m 0644 %{SOURCE1} %{buildroot}%{_unitdir}/%{name}.service
+install -D -m 0644 %{SOURCE3} %{buildroot}%{_unitdir}/%{name}@.service
 install -D -m 0644 %{SOURCE2} %{buildroot}%{_sysconfdir}/%{name}/%{name}.conf
 
-# Captured mail lives here; the service also declares StateDirectory=maildev
+# One config file per instance goes here, named after the instance
+install -d -m 0755 %{buildroot}%{_sysconfdir}/%{name}/instances
+
+# Shipped as documentation rather than an inert file in /etc; %doc below picks it
+# up from the build directory
+cp -p %{SOURCE4} ./instance.conf.example
+
+# Captured mail lives here; the units also declare StateDirectory=
 install -d -m 0750 %{buildroot}%{maildir}
 
 
@@ -87,18 +101,29 @@ exit 0
 
 %preun
 %systemd_preun %{name}.service
+# The macro above does not expand template instances, so stop them explicitly on
+# uninstall. Left running, they would keep serving from a deleted install.
+if [ $1 -eq 0 ]; then
+    /usr/bin/systemctl stop '%{name}@*.service' >/dev/null 2>&1 || :
+fi
 
 %postun
 %systemd_postun_with_restart %{name}.service
+if [ $1 -ge 1 ]; then
+    # Likewise for upgrades: restart whichever instances are running
+    /usr/bin/systemctl try-restart '%{name}@*.service' >/dev/null 2>&1 || :
+fi
 
 
 %files
 %license LICENSE
-%doc README.md
+%doc README.md instance.conf.example
 %{appdir}
 %{_bindir}/%{name}
 %{_unitdir}/%{name}.service
+%{_unitdir}/%{name}@.service
 %dir %{_sysconfdir}/%{name}
+%dir %{_sysconfdir}/%{name}/instances
 %config(noreplace) %{_sysconfdir}/%{name}/%{name}.conf
 %attr(0750,%{name},%{name}) %dir %{maildir}
 

@@ -98,7 +98,8 @@ docker run --rm \
     dnf -q -y install rpm-build rpmdevtools systemd-rpm-macros >/dev/null
     rpmdev-setuptree
     cp /in/maildev-app.tar.gz ~/rpmbuild/SOURCES/
-    cp /spec/maildev.service /spec/maildev.conf ~/rpmbuild/SOURCES/
+    cp /spec/maildev.service "/spec/maildev@.service" \
+       /spec/maildev.conf /spec/instance.conf.example ~/rpmbuild/SOURCES/
     cp /spec/maildev.spec ~/rpmbuild/SPECS/
     rpmbuild -bb ~/rpmbuild/SPECS/maildev.spec \
       --define "_maildev_version $RPM_VERSION" \

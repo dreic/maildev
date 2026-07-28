@@ -47,8 +47,10 @@ Then point your application's mail transport at port 1025 and open
 | --- | --- |
 | `/usr/lib/maildev/` | Application and its production dependencies |
 | `/usr/bin/maildev` | Launcher; behaves like the npm-installed CLI |
-| `/etc/maildev/maildev.conf` | Configuration, read by the unit as an `EnvironmentFile` |
-| `/usr/lib/systemd/system/maildev.service` | Service unit |
+| `/etc/maildev/maildev.conf` | Configuration for the single-instance service |
+| `/etc/maildev/instances/` | One config file per instance, for `maildev@.service` |
+| `/usr/lib/systemd/system/maildev.service` | Single-instance unit |
+| `/usr/lib/systemd/system/maildev@.service` | Template unit for multiple instances |
 | `/var/lib/maildev/` | Captured mail, owned by the `maildev` system user |
 
 ## Configuring
@@ -67,6 +69,58 @@ interfaces. **There is no authentication by default** — MailDev is a developme
 tool and captured mail is readable by anyone who can reach the port. On a shared
 host, either bind to localhost (`MAILDEV_WEB_IP=127.0.0.1`, `MAILDEV_IP=127.0.0.1`)
 or set `MAILDEV_WEB_USER` and `MAILDEV_WEB_PASS`.
+
+## Running multiple instances
+
+Use the `maildev@.service` template to run several independent instances on one
+host — one per project, environment or team. Each gets its own ports, its own
+mail directory and its own captured mail.
+
+Create a config file per instance, named after the instance:
+
+```bash
+sudo cp /usr/share/doc/maildev/instance.conf.example /etc/maildev/instances/dev.conf
+sudo cp /usr/share/doc/maildev/instance.conf.example /etc/maildev/instances/staging.conf
+```
+
+Give each one unused ports:
+
+```ini
+# /etc/maildev/instances/dev.conf
+MAILDEV_SMTP_PORT=2025
+MAILDEV_WEB_PORT=2080
+
+# /etc/maildev/instances/staging.conf
+MAILDEV_SMTP_PORT=3025
+MAILDEV_WEB_PORT=3080
+```
+
+Then start them:
+
+```bash
+sudo systemctl enable --now maildev@dev maildev@staging
+systemctl status 'maildev@*'
+```
+
+Mail lands in `/var/lib/maildev/dev` and `/var/lib/maildev/staging`, created
+automatically. Nothing is shared between instances.
+
+The instance config is **not** optional — the unit refuses to start without
+`/etc/maildev/instances/<name>.conf`, rather than silently colliding with another
+instance on the default ports. If two instances are given the same port, the
+second fails with `EADDRINUSE`, visible in `journalctl -u maildev@<name>`.
+
+The single-instance `maildev.service` and the template can coexist, but they both
+default to ports 1025/1080, so don't enable `maildev.service` alongside an
+instance using those. For a purely multi-instance host, leave `maildev.service`
+disabled and use only the template.
+
+Equivalent command-line form, if you would rather not use systemd at all — the
+v2 flags all still work:
+
+```bash
+maildev --smtp 2025 --web 2080 --mail-directory /srv/maildev/dev
+```
 
 ### Ports below 1024
 
@@ -97,6 +151,13 @@ previous contents:
 ```bash
 curl http://localhost:1080/api/reloadMailsFromDirectory
 ```
+
+A side effect: mail left from before a restart is not tracked by the running
+instance, so `MAILDEV_MAX_EMAILS` will not evict it and the file count on disk can
+exceed the count shown in the web interface. It stays bounded — the mail directory
+is trimmed to the newest `MAILDEV_MAX_EMAILS` files at every start — but expect up
+to roughly twice that many files between restarts. Reloading as above, or clearing
+the inbox from the web interface, brings the two back into line.
 
 ## Firewall
 
