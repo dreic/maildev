@@ -159,6 +159,16 @@ If the two disagree the page still loads while everything it then requests —
 assets, REST calls, the websocket — resolves to the wrong path and 404s. A
 trailing slash on `proxy_pass` is the usual cause.
 
+Point health checks at `/<prefix>/api/healthz`, not at `/<prefix>/`. The base path
+root is served by the single-page-app fallback, which only answers requests that
+accept `text/html`; a browser gets the page, but a probe sending the usual
+`Accept: */*` gets a 404 and will read the service as down. `api/healthz` answers
+regardless:
+
+```bash
+curl -fsS https://mailcatcher.example.com/dev/corehr/api/healthz
+```
+
 Equivalent command-line form, if you would rather not use systemd at all — the
 v2 flags all still work:
 
