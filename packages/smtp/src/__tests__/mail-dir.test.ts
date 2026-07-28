@@ -176,6 +176,25 @@ describe('SMTPServer mail directory', () => {
     })
   })
 
+  describe('mail directory validation', () => {
+    it('should create the mail directory when it does not exist', () => {
+      const fresh = join(mailDir, 'nested', 'deeper')
+      server = new SMTPServer({ storage, mailDir: fresh, logger: false })
+
+      expect(existsSync(fresh)).toBe(true)
+    })
+
+    it('should reject a mail directory that is actually a file', async () => {
+      const notADir = join(mailDir, 'a-file')
+      await writeFile(notADir, 'not a directory')
+
+      // Left unchecked, this surfaces later as an unhelpful failure mid-delivery
+      expect(() => new SMTPServer({ storage, mailDir: notADir, logger: false })).toThrow(
+        /not a directory/i
+      )
+    })
+  })
+
   describe('loadMailsFromDirectory', () => {
     it('should restore emails from disk', async () => {
       server = new SMTPServer({ storage, mailDir, logger: false })
